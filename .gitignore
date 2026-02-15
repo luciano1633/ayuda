@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Build files (except APK folder)
+app/build/
+!apk/
+
+# Keep APK for distribution
+!apk/*.apk
+

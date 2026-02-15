@@ -5,33 +5,22 @@
 - [2. Instrucciones rápidas](#2-instrucciones-rápidas)
 - [3. Flujo de la aplicación (usuario)](#3-flujo-de-la-aplicación-usuario)
 - [4. Arquitectura y archivos clave](#4-arquitectura-y-archivos-clave)
-  - Persistencia
-  - Lógica / estado
-  - UI
-  - Tema / accesibilidad
-- [5. Decisiones técnicas relevantes](#5-decisiones-técnicas-relevantes)
-- [6. Cómo validar la funcionalidad (pasos manuales)](#6-cómo-validar-la-funcionalidad-pasos-manuales)
-- [7. Espacios para capturas (añadir imágenes aquí)](#7-espacios-para-capturas-añadir-imágenes-aquí)
-- [8. Apéndice técnico (detallado)](#8-apéndice-técnico-detallado)
-  - [8.9 Estructura del proyecto](#89-estructura-del-proyecto)
-  - [8.10 Ejemplos de uso del repositorio y ViewModel](#810-ejemplos-de-uso-del-repositorio-y-viewmodel)
-  - [8.11 Ejemplo de test unitario para ViewModel](#811-ejemplo-de-test-unitario-para-viewmodel)
-  - [8.12 Recomendaciones CI y calidad](#812-recomendaciones-ci-y-calidad)
-  - [8.13 Checklist final de entrega](#813-checklist-final-de-entrega)
-- [9. Tests instrumentados y cómo ejecutarlos](#9-tests-instrumentados-y-cómo-ejecutarlos)
-- [Anexos y rutas relevantes](#anexos-y-rutas-relevantes)
+- [5. Mejoras técnicas implementadas](#5-mejoras-técnicas-implementadas)
+- [6. Cómo validar la funcionalidad](#6-cómo-validar-la-funcionalidad)
+- [7. Videos demostrativos](#7-videos-demostrativos)
+- [8. Apéndice técnico](#8-apéndice-técnico)
 
 ---
 
 # 1. Resumen ejecutivo
 La aplicación "¿Necesitas ayuda?" es un prototipo móvil desarrollado con Jetpack Compose que conecta a usuarios con técnicos a domicilio. Implementa:
-- Interfaz navegable Home → Detail con `NavHost`.
-- Lista de servicios con `LazyColumn` (equivalente moderno a RecyclerView).
-- CRUD local (Crear / Leer / Actualizar / Eliminar) usando persistencia local con SharedPreferences (JSON).
-- Diálogos para añadir/editar (`AlertDialog`) y confirmación de borrado.
-- Principios de accesibilidad (semántica, testTags, tamaños táctiles y jerarquía visual).
 
-Este informe documenta la implementación, cómo validar la funcionalidad y dónde colocar las capturas y el APK para la entrega.
+- **12 servicios predefinidos** organizados por categorías (Hogar, Tecnología, Vehículos, Salud)
+- **Sistema de reservas completo** con formulario, DatePicker/TimePicker y gestión de estados
+- **Arquitectura MVVM** con Kotlin Coroutines para operaciones asíncronas
+- **LeakCanary** para detección de memory leaks
+- **Coil** para carga eficiente de imágenes
+- **Manejo de errores estructurado** con try-catch y logging
 
 ---
 
@@ -42,88 +31,104 @@ Este informe documenta la implementación, cómo validar la funcionalidad y dón
 .\gradlew.bat :app:assembleDebug
 ```
 
-- Instalar APK en dispositivo conectado (opcional):
+- Instalar APK en dispositivo conectado:
 
 ```powershell
 .\gradlew.bat :app:installDebug
 ```
 
-- Ejecutar tests instrumentados (requiere dispositivo/emulador conectado):
-
-```powershell
-.\gradlew.bat :app:connectedAndroidTest
-```
-
 ---
 
 # 3. Flujo de la aplicación (usuario)
-- Home: TopAppBar "¿Necesitas ayuda?", lista de servicios, FAB (+) para añadir.
-- Añadir servicio: FAB abre diálogo con campos "Título" (obligatorio) y "Subtítulo".
-- Detail: muestra ID, título, subtítulo; botones "Editar" y "Eliminar".
-- Editar: abre diálogo pre‑relleno; al guardar actualiza la persistencia.
-- Eliminar: muestra ConfirmDialog y al confirmar borra el registro.
+1. **ServicesScreen**: Lista de 12 servicios predefinidos con filtros por categoría
+2. **BookingFormScreen**: Formulario para agendar servicio (nombre, teléfono, dirección, fecha, hora)
+3. **MyBookingsScreen**: Ver reservas, marcar como realizado o cancelar
 
 ---
 
 # 4. Arquitectura y archivos clave
 
+## Estructura MVVM
+```
+app/src/main/java/com/example/ayuda_v2/
+├── AyudaApplication.kt          # Application class
+├── data/                        # CAPA MODEL
+│   ├── BookingRepository.kt     # Repository con Coroutines
+│   └── model/
+│       ├── Booking.kt           # Modelo de reserva
+│       └── Service.kt           # Servicios predefinidos
+├── ui/                          # CAPA VIEW
+│   ├── screens/
+│   │   ├── ServicesScreen.kt
+│   │   ├── BookingFormScreen.kt
+│   │   └── MyBookingsScreen.kt
+│   └── state/
+│       └── UiState.kt           # Estados de UI
+└── viewmodel/                   # CAPA VIEWMODEL
+    └── BookingViewModel.kt      # ViewModel con Coroutines
+```
+
 ## Persistencia
-- `app/src/main/java/com/example/ayuda_v2/data/ServicesRepository.kt` — gestiona SharedPreferences (JSON array) con APIs: `getAll`, `saveAll`, `add`, `update`, `delete`.
-- Motivación: SharedPreferences es suficiente para el prototipo y facilita pruebas; para escalado producir Room.
+- `BookingRepository.kt` — Gestiona SharedPreferences con operaciones asíncronas usando `Dispatchers.IO`
 
 ## Lógica / estado
-- `app/src/main/java/com/example/ayuda_v2/viewmodel/ServicesViewModel.kt` — `AndroidViewModel` que expone `items` (mutableStateListOf) y métodos CRUD que llaman al repositorio.
-
-## UI
-- `app/src/main/java/com/example/ayuda_v2/ui/screens/HomeScreen.kt` — lista (`LazyColumn`) y FAB; integra `ServicesViewModel`.
-- `app/src/main/java/com/example/ayuda_v2/ui/screens/DetailScreen.kt` — detalle, edición y eliminación.
-- `app/src/main/java/com/example/ayuda_v2/ui/components/HelpItem.kt` — fila estilo tarjeta con `testTag` y semántica.
-- `app/src/main/java/com/example/ayuda_v2/ui/components/AddEditServiceDialog.kt` — diálogo con validación de título.
-- `app/src/main/java/com/example/ayuda_v2/ui/components/ConfirmDialog.kt` — diálogo de confirmación.
-- `app/src/main/java/com/example/ayuda_v2/ui/navigation/NavGraph.kt` — rutas y paso del `ServicesViewModel`.
-
-## Tema / accesibilidad
-- `app/src/main/java/com/example/ayuda_v2/ui/theme/Color.kt`, `Type.kt`, `Theme.kt`.
+- `BookingViewModel.kt` — ViewModel con `StateFlow` para estados reactivos y `CoroutineExceptionHandler` para manejo de errores
 
 ---
 
-# 5. Decisiones técnicas relevantes
-- Persistencia: elegido SharedPreferences por simplicidad y facilidad de integración con JSON; ventajas: rápido prototipado, sin esquema; limitaciones: no es relacional ni ideal para consultas complejas. Si se requiere escalado, migrar a Room.
-- ViewModel: `ServicesViewModel` centraliza el estado y evita acoplamiento UI–datos.
-- Pruebas UI: tests instrumentados con Compose testing verifican el flujo crítico (crear → abrir detalle).
-- Accesibilidad: se añadieron `contentDescription` y `testTag` para elementos relevantes y se cuidó tamaño táctil y jerarquía tipográfica.
+# 5. Mejoras técnicas implementadas
+
+## 5.1 Kotlin Coroutines
+```kotlin
+viewModelScope.launch(exceptionHandler) {
+    _uiState.value = UiState.Loading
+    withContext(Dispatchers.IO) {
+        BookingRepository.add(ctx, booking)
+    }
+    _uiState.value = UiState.Success(Unit)
+}
+```
+
+## 5.2 Manejo de errores
+- Try-catch estratégico en operaciones críticas
+- Logging con niveles: `Log.d()`, `Log.w()`, `Log.e()`
+- Método `simulateError()` para testing
+
+## 5.3 LeakCanary
+```kotlin
+debugImplementation("com.squareup.leakcanary:leakcanary-android:2.12")
+```
+
+## 5.4 Coil para imágenes
+```kotlin
+SubcomposeAsyncImage(
+    model = imageUrl,
+    loading = { CircularProgressIndicator() },
+    error = { DefaultServicePlaceholder() }
+)
+```
 
 ---
 
-# 6. Cómo validar la funcionalidad (pasos manuales)
-1. Abrir la app (Home).
-2. Pulsar `+` y añadir: Título "Prueba A", Subtítulo "Técnico disponible" → Guardar.
-3. Verificar que aparece en la lista.
-4. Pulsar el item: abrirá Detail y mostrará `ID: ...` (testTag `detail_id_text`).
-5. Pulsar Editar: cambiar título y guardar; verificar cambio en Home.
-6. Pulsar Eliminar: confirmar; verificar que desaparece.
-7. Reiniciar la app: los cambios deben persistir.
+# 6. Cómo validar la funcionalidad
+1. Abrir la app (ServicesScreen)
+2. Seleccionar un servicio (ej: Electricista)
+3. Completar el formulario de reserva
+4. Verificar que aparece en "Mis Reservas"
+5. Marcar como realizado o cancelar
+6. Reiniciar la app: los cambios deben persistir
 
 ---
 
-# 7. Espacios para capturas (añadir imágenes aquí)
-Coloca en `docs/mocks/` los archivos y reemplaza las rutas abajo.
+# 7. Videos demostrativos
 
-- Pantalla Home
+Los videos se encuentran en `docs/screenshots/`:
 
-![Home](mocks/home.png)
-
-- Diálogo "Agregar servicio"
-
-![Agregar servicio](mocks/dialog_add.png)
-
-- Pantalla Detail
-
-![Detail](mocks/detail.png)
-
-- Confirmación de borrado
-
-![ConfirmDelete](mocks/confirm_delete.png)
+| Video | Descripción |
+|-------|-------------|
+| `leaks.mp4` | Demostración de LeakCanary sin memory leaks |
+| `logcat.mp4` | Uso de Logcat con filtros por TAG |
+| `Memory.mp4` | Android Profiler mostrando uso de memoria |
 
 ---
 

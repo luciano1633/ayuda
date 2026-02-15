@@ -14,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,8 +37,9 @@ fun DetailScreen(id: String, onBack: () -> Unit, servicesViewModel: ServicesView
     val context = LocalContext.current
     val showDialog = remember { mutableStateOf(false) }
     val showDeleteConfirm = remember { mutableStateOf(false) }
+    val items = servicesViewModel.items.collectAsState().value
 
-    val item = servicesViewModel.items.find { it.id == id }
+    val item = items.find { it.id == id }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
