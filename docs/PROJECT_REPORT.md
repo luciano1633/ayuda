@@ -1,106 +1,227 @@
-# Informe del prototipo — ¿Necesitas ayuda?
+# Informe Técnico — ¿Necesitas ayuda?
 
 ## Índice
 - [1. Resumen ejecutivo](#1-resumen-ejecutivo)
-- [2. Instrucciones rápidas](#2-instrucciones-rápidas)
-- [3. Flujo de la aplicación (usuario)](#3-flujo-de-la-aplicación-usuario)
-- [4. Arquitectura y archivos clave](#4-arquitectura-y-archivos-clave)
-- [5. Mejoras técnicas implementadas](#5-mejoras-técnicas-implementadas)
-- [6. Cómo validar la funcionalidad](#6-cómo-validar-la-funcionalidad)
-- [7. Videos demostrativos](#7-videos-demostrativos)
-- [8. Apéndice técnico](#8-apéndice-técnico)
+- [2. Flujo funcional elegido](#2-flujo-funcional-elegido)
+- [3. Arquitectura MVVM implementada](#3-arquitectura-mvvm-implementada)
+- [4. Componentes Jetpack utilizados](#4-componentes-jetpack-utilizados)
+- [5. Mejoras implementadas](#5-mejoras-implementadas)
+- [6. Pruebas unitarias y funcionales](#6-pruebas-unitarias-y-funcionales)
+- [7. Instrucciones para ejecutar el proyecto](#7-instrucciones-para-ejecutar-el-proyecto)
+- [8. Evidencias de pruebas](#8-evidencias-de-pruebas)
+- [9. Reflexión e impacto](#9-reflexión-e-impacto)
+- [10. Recomendaciones para publicación](#10-recomendaciones-para-publicación)
 
 ---
 
 # 1. Resumen ejecutivo
-La aplicación "¿Necesitas ayuda?" es un prototipo móvil desarrollado con Jetpack Compose que conecta a usuarios con técnicos a domicilio. Implementa:
 
-- **12 servicios predefinidos** organizados por categorías (Hogar, Tecnología, Vehículos, Salud)
-- **Sistema de reservas completo** con formulario, DatePicker/TimePicker y gestión de estados
-- **Arquitectura MVVM** con Kotlin Coroutines para operaciones asíncronas
-- **LeakCanary** para detección de memory leaks
-- **Coil** para carga eficiente de imágenes
-- **Manejo de errores estructurado** con try-catch y logging
+La aplicación "¿Necesitas ayuda?" es un prototipo móvil desarrollado con **Jetpack Compose** que conecta a usuarios con técnicos a domicilio. A lo largo de las semanas 3 a 7 del curso, se han implementado mejoras progresivas:
+
+| Semana | Mejora | Herramienta/Patrón |
+|--------|--------|--------------------|
+| 3 | Procesamiento asíncrono | Kotlin Coroutines, Dispatchers.IO, viewModelScope |
+| 4 | Debugging y manejo de errores | try-catch, Logcat con TAGs, simulación de errores |
+| 5 | Gestión de memoria | LeakCanary 2.12, applicationContext, onTrimMemory |
+| 6 | Integración de librerías | Coil (imágenes), Room Database, KSP |
+| 7 | Arquitectura y pruebas | MVVM completo, JUnit+MockK, Compose Testing |
 
 ---
 
-# 2. Instrucciones rápidas
-- Generar APK debug:
+# 2. Flujo funcional elegido
 
-```powershell
-.\gradlew.bat :app:assembleDebug
+## Sistema completo de reservas de servicios
+
+Se seleccionó el **flujo de reservas** como flujo crítico porque:
+
+1. **Impacto directo en UX**: Es la funcionalidad principal de la app — el usuario selecciona un servicio predefinido, completa un formulario y agenda una hora.
+2. **Complejidad técnica**: Involucra operaciones CRUD, persistencia local, validación de formularios, navegación entre pantallas y gestión de estados.
+3. **Permite aplicar múltiples técnicas avanzadas**: asincronía (Coroutines/Flow), debugging (try-catch/Logcat), memoria (LeakCanary), base de datos (Room) y pruebas (unitarias + funcionales).
+
+### Pantallas del flujo:
+- **ServicesScreen**: Lista de 12 servicios predefinidos con filtros por categoría (Hogar, Tecnología, Vehículos, Salud)
+- **BookingFormScreen**: Formulario con validación (nombre, teléfono, dirección, fecha/hora)
+- **MyBookingsScreen**: Gestión de reservas — marcar como realizado (✓) o cancelar
+
+---
+
+# 3. Arquitectura MVVM implementada
+
+## Enfoque arquitectónico
+
+Se implementó el patrón **MVVM (Model-View-ViewModel)** con separación estricta de responsabilidades:
+
+```
+┌──────────────────────────────────────────────────┐
+│                   VIEW (UI)                       │
+│  ServicesScreen ─ BookingFormScreen ─ MyBookings   │
+│         Jetpack Compose + Navigation              │
+└─────────────────────┬────────────────────────────┘
+                      │ StateFlow / UiState
+┌─────────────────────┴────────────────────────────┐
+│                 VIEWMODEL                         │
+│       BookingViewModel + ViewModelFactory         │
+│    Coroutines + CoroutineExceptionHandler         │
+└─────────────────────┬────────────────────────────┘
+                      │ IBookingRepository (interfaz)
+┌─────────────────────┴────────────────────────────┐
+│               MODEL (DATA)                        │
+│  BookingRepository → BookingDao → Room Database   │
+│  BookingEntity ↔ Booking (mappers)                │
+│  Service, PredefinedServices                      │
+└──────────────────────────────────────────────────┘
 ```
 
-- Instalar APK en dispositivo conectado:
+### Principios SOLID aplicados:
+- **S** - Responsabilidad única: cada clase tiene un propósito claro
+- **O** - Abierto/cerrado: se pueden agregar servicios sin modificar el ViewModel
+- **L** - Sustitución de Liskov: `IBookingRepository` permite sustituir la implementación
+- **I** - Segregación de interfaces: interfaz `IBookingRepository` con métodos precisos
+- **D** - Inversión de dependencias: ViewModel depende de la interfaz, no de Room directamente
 
-```powershell
-.\gradlew.bat :app:installDebug
-```
-
----
-
-# 3. Flujo de la aplicación (usuario)
-1. **ServicesScreen**: Lista de 12 servicios predefinidos con filtros por categoría
-2. **BookingFormScreen**: Formulario para agendar servicio (nombre, teléfono, dirección, fecha, hora)
-3. **MyBookingsScreen**: Ver reservas, marcar como realizado o cancelar
-
----
-
-# 4. Arquitectura y archivos clave
-
-## Estructura MVVM
+### Estructura de archivos:
 ```
 app/src/main/java/com/example/ayuda_v2/
-├── AyudaApplication.kt          # Application class
-├── data/                        # CAPA MODEL
-│   ├── BookingRepository.kt     # Repository con Coroutines
+├── AyudaApplication.kt              # Inicialización Room + monitoreo memoria
+├── MainActivity.kt                  # Entry point
+├── data/                            # CAPA MODEL
+│   ├── BookingRepository.kt         # IBookingRepository + BookingRepository
+│   ├── local/
+│   │   ├── AppDatabase.kt           # Room Database (singleton)
+│   │   ├── BookingDao.kt            # DAO con Flow reactivo
+│   │   └── BookingEntity.kt         # Entidad Room + mappers toBooking/toEntity
 │   └── model/
-│       ├── Booking.kt           # Modelo de reserva
-│       └── Service.kt           # Servicios predefinidos
-├── ui/                          # CAPA VIEW
+│       ├── Booking.kt               # Modelo de dominio + BookingStatus enum
+│       └── Service.kt               # Service + ServiceCategory + PredefinedServices
+├── ui/                              # CAPA VIEW
+│   ├── components/ServiceImage.kt   # Componente Coil para imágenes
+│   ├── navigation/NavGraph.kt       # Navigation Compose + ViewModelFactory
 │   ├── screens/
-│   │   ├── ServicesScreen.kt
-│   │   ├── BookingFormScreen.kt
-│   │   └── MyBookingsScreen.kt
-│   └── state/
-│       └── UiState.kt           # Estados de UI
-└── viewmodel/                   # CAPA VIEWMODEL
-    └── BookingViewModel.kt      # ViewModel con Coroutines
+│   │   ├── ServicesScreen.kt        # Lista con filtros + testTags
+│   │   ├── BookingFormScreen.kt     # Formulario con validación + testTags
+│   │   └── MyBookingsScreen.kt      # Gestión reservas + testTags
+│   ├── state/UiState.kt             # Sealed class: Idle/Loading/Success/Error
+│   └── theme/
+└── viewmodel/
+    └── BookingViewModel.kt          # ViewModel + BookingViewModelFactory
 ```
-
-## Persistencia
-- `BookingRepository.kt` — Gestiona SharedPreferences con operaciones asíncronas usando `Dispatchers.IO`
-
-## Lógica / estado
-- `BookingViewModel.kt` — ViewModel con `StateFlow` para estados reactivos y `CoroutineExceptionHandler` para manejo de errores
 
 ---
 
-# 5. Mejoras técnicas implementadas
+# 4. Componentes Jetpack utilizados
 
-## 5.1 Kotlin Coroutines
+| Componente | Justificación técnica |
+|------------|----------------------|
+| **ViewModel** | Sobrevive a cambios de configuración (rotación). Gestiona estado con `StateFlow`. Usa `viewModelScope` para coroutines con ciclo de vida automático. |
+| **Room** | Reemplaza SharedPreferences. Ventajas: consultas SQL verificadas en compilación, soporte nativo de `Flow` para actualizaciones reactivas, migraciones de esquema. DAO genera queries optimizadas automáticamente. |
+| **Navigation Compose** | Gestiona transiciones entre ServicesScreen → BookingFormScreen → MyBookingsScreen. Soporta argumentos (serviceId) y popBackStack. |
+| **LiveData/StateFlow** | Se usa `StateFlow` (más idiomático en Kotlin) para exponer estados reactivos del ViewModel a la UI. `UiState` sealed class maneja Idle/Loading/Success/Error. |
+| **Compose** | UI declarativa que se recompone automáticamente al cambiar los StateFlow. TestTags permiten pruebas funcionales. |
+
+---
+
+# 5. Mejoras implementadas
+
+## 5.1 Procesamiento asíncrono (Semana 3)
+
+**Herramienta**: Kotlin Coroutines
+
 ```kotlin
+// BookingViewModel.kt - Coroutines sin bloquear UI
 viewModelScope.launch(exceptionHandler) {
     _uiState.value = UiState.Loading
-    withContext(Dispatchers.IO) {
-        BookingRepository.add(ctx, booking)
-    }
+    repository.add(booking)  // suspend fun ejecutada en IO
     _uiState.value = UiState.Success(Unit)
 }
 ```
 
-## 5.2 Manejo de errores
-- Try-catch estratégico en operaciones críticas
-- Logging con niveles: `Log.d()`, `Log.w()`, `Log.e()`
-- Método `simulateError()` para testing
-
-## 5.3 LeakCanary
 ```kotlin
-debugImplementation("com.squareup.leakcanary:leakcanary-android:2.12")
+// BookingRepository.kt - Dispatchers.IO para operaciones de BD
+override suspend fun add(booking: Booking) {
+    withContext(Dispatchers.IO) {
+        bookingDao.insert(booking.toEntity())
+    }
+}
 ```
 
-## 5.4 Coil para imágenes
+**Justificación**: `viewModelScope` cancela automáticamente las coroutines cuando el ViewModel se destruye. `Dispatchers.IO` previene ANRs ejecutando operaciones de BD en un hilo de background.
+
+## 5.2 Debugging y manejo de errores (Semana 4)
+
+**Herramientas**: try-catch, Logcat, CoroutineExceptionHandler
+
 ```kotlin
+// Logging estructurado con niveles y TAGs
+Log.d(TAG, "Adding booking: ${booking.id}")      // Debug
+Log.i(TAG, "App initialized successfully")        // Info
+Log.w(TAG, "Memory trim: Running low")            // Warning
+Log.e(TAG, "Error adding booking", exception)     // Error
+
+// CoroutineExceptionHandler global
+private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+    Log.e(TAG, "Error in coroutine", throwable)
+    _uiState.value = UiState.Error(throwable.message ?: "Error desconocido")
+}
+
+// Simulación de errores para testing
+fun simulateError() {
+    viewModelScope.launch(exceptionHandler) {
+        throw RuntimeException("Error simulado para testing")
+    }
+}
+```
+
+**TAGs utilizados**: `BookingRepository`, `BookingViewModel`, `AyudaApplication`
+
+## 5.3 Gestión de memoria (Semana 5)
+
+**Herramienta**: LeakCanary 2.12
+
+```kotlin
+// build.gradle.kts - Solo en debug builds
+debugImplementation("com.squareup.leakcanary:leakcanary-android:2.12")
+
+// AyudaApplication.kt - Monitoreo de memoria
+override fun onLowMemory() {
+    Log.w(TAG, "System is running low on memory")
+}
+override fun onTrimMemory(level: Int) { ... }
+```
+
+**Correcciones aplicadas**:
+- Uso de `applicationContext` en vez de `Activity context` para prevenir leaks
+- ViewModel NO retiene referencias a Activity/Fragment
+- `ViewModel.onCleared()` con logging para verificar liberación de recursos
+
+## 5.4 Integración de librerías (Semana 6)
+
+### Room Database
+```kotlin
+// Entidad Room
+@Entity(tableName = "bookings")
+data class BookingEntity(
+    @PrimaryKey val id: String,
+    val serviceId: String,
+    val serviceName: String,
+    // ... más campos
+)
+
+// DAO con Flow reactivo
+@Dao
+interface BookingDao {
+    @Query("SELECT * FROM bookings ORDER BY createdAt DESC")
+    fun getAllBookings(): Flow<List<BookingEntity>>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(booking: BookingEntity)
+}
+```
+
+**Justificación**: Room verifica queries SQL en tiempo de compilación, soporta Flow nativo para actualizaciones reactivas de UI, y gestiona migraciones de esquema.
+
+### Coil para imágenes
+```kotlin
+// ServiceImage.kt
 SubcomposeAsyncImage(
     model = imageUrl,
     loading = { CircularProgressIndicator() },
@@ -108,268 +229,162 @@ SubcomposeAsyncImage(
 )
 ```
 
----
+**Justificación**: Coil es nativo de Kotlin, soporta Coroutines, tiene integración nativa con Compose, caché automático en memoria y disco, y previene memory leaks automáticamente.
 
-# 6. Cómo validar la funcionalidad
-1. Abrir la app (ServicesScreen)
-2. Seleccionar un servicio (ej: Electricista)
-3. Completar el formulario de reserva
-4. Verificar que aparece en "Mis Reservas"
-5. Marcar como realizado o cancelar
-6. Reiniciar la app: los cambios deben persistir
+## 5.5 Arquitectura MVVM y pruebas (Semana 7)
 
----
-
-# 7. Videos demostrativos
-
-Los videos se encuentran en `docs/screenshots/`:
-
-| Video | Descripción |
-|-------|-------------|
-| `leaks.mp4` | Demostración de LeakCanary sin memory leaks |
-| `logcat.mp4` | Uso de Logcat con filtros por TAG |
-| `Memory.mp4` | Android Profiler mostrando uso de memoria |
+- **Interfaz `IBookingRepository`**: permite inyectar mocks en tests
+- **`BookingViewModelFactory`**: inyección de dependencias manual
+- **Migración Room**: de SharedPreferences a base de datos relacional
+- **TestTags**: agregados a componentes UI para pruebas funcionales
+- **Pruebas unitarias**: 33 tests con JUnit + MockK
+- **Pruebas funcionales**: 11 tests con Compose Testing
 
 ---
 
-# 8. Apéndice técnico (detallado)
+# 6. Pruebas unitarias y funcionales
 
-Esta sección aporta detalles técnicos pensados para un desarrollador que mantendrá o completará el prototipo: estructura de datos, contratos, API del repositorio, consideraciones de concurrencia y ciclo de vida, y recomendaciones para pruebas e integración continua.
+## 6.1 Pruebas unitarias (JUnit + MockK)
 
-## 8.1 Modelo de datos
-Para este prototipo la unidad básica es `HelpModel` (o "Servicio") con la forma mínima:
-
-- id: String (UUID generado al crear)
-- title: String (título del servicio, obligatorio)
-- subtitle: String (texto opcional descriptivo)
-
-En Kotlin está definido (em ejemplo en `HomeScreen.kt`) como:
-
+### BookingViewModelTest (18 tests)
 ```kotlin
-data class HelpModel(val id: String, val title: String, val subtitle: String)
-```
+@Test
+fun `createBooking calls repository add on success`() = runTest {
+    coEvery { repository.add(any()) } just Runs
+    viewModel.createBooking(serviceId = "electricista", ...)
+    advanceUntilIdle()
+    coVerify(exactly = 1) { repository.add(match { it.serviceId == "electricista" }) }
+}
 
-## 8.2 Formato de persistencia (SharedPreferences / JSON)
-Los servicios se almacenan como un array JSON en una única clave de `SharedPreferences`.
-Ejemplo de contenido guardado en `KEY_SERVICES`:
-
-```json
-[
-  { "id": "d290f1ee-6c54-4b01-90e6-d701748f0851", "title": "Electricista - revisión", "subtitle": "Servicio disponible hoy" },
-  { "id": "a3f1e8b9-4b1d-4aeb-8e2a-1234567890ab", "title": "Instalación de estufa", "subtitle": "Incluye materiales" }
-]
-```
-
-Ventajas: simple y fácil de inspeccionar. Limitaciones: operaciones de escritura implican reescribir todo el array; no es eficiente para conjuntos de datos muy grandes.
-
-## 8.3 API del repositorio (`ServicesRepository`)
-Contrato público (resumen):
-
-- `getAll(context: Context): List<HelpModel>` — devuelve todos los servicios, o lista vacía si no hay datos.
-- `saveAll(context: Context, services: List<HelpModel>)` — sobrescribe la lista completa en SharedPreferences.
-- `add(context: Context, service: HelpModel)` — añade un servicio y persiste.
-- `update(context: Context, service: HelpModel)` — busca por `id` y reemplaza, luego persiste.
-- `delete(context: Context, id: String)` — elimina por `id` y persiste.
-
-Recomendaciones de uso:
-- Llamar a estas API desde un ViewModel (ya implementado) para evitar fugas de contexto en UI y manejar estados reactivamente.
-- Atrapar y registrar excepciones JSON parsing para evitar crash si los datos en `SharedPreferences` están corruptos.
-
-## 8.4 Consideraciones de concurrencia y lifecycle
-- En este prototipo las operaciones son síncronas y rápidas, pero en producción conviene:
-  - Ejecutar lecturas/escrituras en un dispatcher IO (coroutines) para no bloquear el hilo UI.
-  - Garantizar atomicidad de escrituras: usar `SharedPreferences.edit().apply()` ya es atómico en Android, pero para mayor seguridad en escenarios concurrentes usar un lock en memoria o migrar a Room.
-  - Evitar conservar referencias a Context que puedan causar fugas; `ServicesViewModel` actualmente guarda `applicationContext` — recomendable usar `getApplication()` o inyectar `Context` en métodos y no en propiedades.
-
-## 8.5 ViewModel y comunicación UI–datos
-- `ServicesViewModel` mantiene una `mutableStateListOf<HelpModel>` que la UI observa; al modificar la lista el Compose UI responde automáticamente.
-- Buenas prácticas aplicadas:
-  - Centralizar la lógica CRUD en ViewModel (separación de responsabilidades).
-  - Delegar persistencia real al repositorio.
-
-## 8.6 Estrategia de testing
-- Unit tests recomendados:
-  - Pruebas unitarias para `ServicesRepository` usando Robolectric o un wrapper que permita pasar un `Context` de test (o abstraer SharedPreferences para inyectar una implementación de memoria).
-  - Pruebas unitarias del ViewModel: aserciones sobre la lista tras llamar `add/update/delete`.
-- Instrumented UI tests:
-  - Tests con Compose Test que cubran el flujo crítico (crear → ver en lista → abrir detalle → editar → eliminar).
-  - Añadimos un test base `HomeScreenTest.kt` que crea un servicio y verifica la navegación; se sugiere agregar un test que verifique la persistencia tras reinicio (simulando recreación de Activity o reinstanciando ViewModel).
-
-## 8.7 Integración continua (CI) y calidad
-- Recomendación de pipeline (GitHub Actions / GitLab CI):
-  1. Ejecutar `./gradlew assembleDebug` para asegurar que el proyecto compila.
-  2. Ejecutar tests unitarios: `./gradlew test`.
-  3. Si hay un runner con emulador, ejecutar instrumented tests: `./gradlew connectedAndroidTest`.
-  4. Generar artefactos (APK) y adjuntarlos al release o a artefacts de CI.
-
-Archivo de ejemplo para GitHub Actions (sugerencia resumida):
-
-```yml
-# .github/workflows/android.yml (resumen)
-name: Android CI
-on: [push, pull_request]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      - name: Build
-        run: ./gradlew assembleDebug --no-daemon
-      - name: Unit tests
-        run: ./gradlew test --no-daemon
-      # connectedAndroidTest requiere runner con emulador configurado
-```
-
-## 8.8 Robustez y mejoras futuras (roadmap)
-- Migrar a Room para persistencia: entidades, DAO y repositorio con coroutines/Flow.
-- Introducir inyección de dependencias (Hilt) para facilitar testing e inversión de dependencias.
-- Añadir manejo de errores y logs estructurados (Crashlytics/Logging) para diagnósticos.
-- Ampliar la suite de tests con pruebas instrumentadas para CRUD completo y pruebas de accesibilidad automatizadas.
-- Añadir modo oscuro y pruebas de contraste (herramientas automáticas que verifiquen ratios WCAG).
-
-## 8.9 Estructura del proyecto
-```
-ayuda_v2/
-├── app/
-│   ├── src/
-│   │   ├── debug/
-│   │   ├── main/
-│   │   │   ├── java/
-│   │   │   │   └── com/
-│   │   │   │       └── example/
-│   │   │   │           └── ayuda_v2/
-│   │   │   │               ├── data/
-│   │   │   │               ├── ui/
-│   │   │   │               ├── viewmodel/
-│   │   │   │               └── MainActivity.kt
-│   │   │   └── res/
-│   │   └── AndroidManifest.xml
-│   └── build.gradle
-├── build.gradle
-└── settings.gradle
-```
-
-## 8.10 Ejemplos de uso del repositorio y ViewModel
-
-- Obtener todos los servicios en el `ViewModel`:
-
-```kotlin
-class ServicesViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ServicesRepository()
-    var items = mutableStateListOf<HelpModel>()
-        private set
-
-    init {
-        loadServices()
-    }
-
-    private fun loadServices() {
-        viewModelScope.launch {
-            items.clear()
-            items.addAll(repository.getAll(getApplication()))
-        }
-    }
-
-    // Ejemplo de método para añadir un servicio
-    fun addService(title: String, subtitle: String) {
-        val newService = HelpModel(UUID.randomUUID().toString(), title, subtitle)
-        viewModelScope.launch {
-            repository.add(getApplication(), newService)
-            loadServices() // Recargar servicios tras añadir
-        }
-    }
+@Test
+fun `createBooking sets Error state for invalid service id`() = runTest {
+    viewModel.createBooking(serviceId = "servicio_fantasma", ...)
+    advanceUntilIdle()
+    assertTrue(viewModel.uiState.value is UiState.Error)
 }
 ```
 
-- Llamadas desde la UI (ejemplo en `HomeScreen.kt`):
+| Test | Descripción |
+|------|-------------|
+| `services list contains 12 predefined services` | Verifica carga de servicios |
+| `createBooking calls repository add` | Verifica delegación al repositorio |
+| `createBooking sets Error for invalid service` | Manejo de servicio inexistente |
+| `cancelBooking calls repository cancel` | Verifica cancelación |
+| `completeBooking calls updateStatus COMPLETED` | Verifica cambio de estado |
+| `bookings flow updates with new data` | Verifica reactividad del Flow |
+| ... y 12 tests más | |
 
+### BookingRepositoryTest (15 tests)
+| Test | Descripción |
+|------|-------------|
+| `getAllBookingsFlow returns mapped bookings` | Mapeo Entity→Model |
+| `add inserts booking entity into dao` | Delegación al DAO |
+| `add preserves all booking fields` | Integridad de datos |
+| `entity toBooking handles invalid status` | Manejo de datos corruptos |
+| `getCount returns 0 when dao throws` | Resiliencia ante errores |
+| ... y 10 tests más | |
+
+### Herramientas:
+- **JUnit 4.13.2**: Framework de testing
+- **MockK 1.13.8**: Mocking nativo de Kotlin (coEvery, coVerify, slot)
+- **kotlinx-coroutines-test 1.7.3**: StandardTestDispatcher, advanceUntilIdle
+
+## 6.2 Pruebas funcionales (Compose Testing)
+
+### BookingFlowTest (11 tests)
 ```kotlin
-@Composable
-fun HomeScreen(viewModel: ServicesViewModel = viewModel()) {
-    val services = viewModel.items
-
-    LazyColumn {
-        items(services) { service ->
-            HelpItem(service) { /* Navegar a detalle */ }
-        }
-    }
-
-    FloatingActionButton(onClick = { /* Abrir diálogo de añadir */ }) {
-        Icon(Icons.Filled.Add, contentDescription = "Agregar servicio")
-    }
+@Test
+fun servicesScreen_clickService_navigatesToBookingForm() {
+    composeTestRule.onNodeWithTag("service_card_electricista").performClick()
+    composeTestRule.onNodeWithText("Agendar Servicio").assertIsDisplayed()
 }
 ```
 
-## 8.11 Ejemplo de test unitario para ViewModel
+| Test | Flujo verificado |
+|------|-----------------|
+| `servicesScreen_displaysTitle` | Pantalla principal visible |
+| `servicesScreen_displaysServiceCategories` | 4 categorías visibles |
+| `servicesScreen_displaysPredefinedServices` | Servicios listados |
+| `servicesScreen_filterByCategory` | Filtro por Tecnología |
+| `servicesScreen_clickService_navigatesToBookingForm` | Navegación a formulario |
+| `bookingForm_displaysServiceInfo` | Info del servicio en formulario |
+| `bookingForm_displaysFormFields` | Campos del formulario |
+| `bookingForm_backButton_returnsToServices` | Navegación atrás |
+| `myBookings_navigation_works` | Navegar a Mis Reservas |
+| `myBookings_showsEmptyState` | Estado vacío |
+| `myBookings_backButton_returnsToServices` | Navegación atrás |
 
-- Test para `ServicesViewModel` usando JUnit y Mockito:
-
-```kotlin
-@RunWith(AndroidJUnit4::class)
-class ServicesViewModelTest {
-
-    private lateinit var viewModel: ServicesViewModel
-    private val repository: ServicesRepository = mock()
-
-    @Before
-    fun setUp() {
-        // Inyectar repositorio simulado
-        viewModel = ServicesViewModel(ApplicationProvider.getApplicationContext())
-        viewModel.repository = repository
-    }
-
-    @Test
-    fun testAddService() = runBlocking {
-        // Dado
-        val initialSize = viewModel.items.size
-        val title = "Nuevo servicio"
-        val subtitle = "Descripción del servicio"
-
-        // Cuando
-        viewModel.addService(title, subtitle)
-
-        // Entonces
-        assertEquals(initialSize + 1, viewModel.items.size)
-        verify(repository).add(any(), argThat { this.title == title && this.subtitle == subtitle })
-    }
-}
-```
-
-## 8.12 Recomendaciones CI y calidad
-- Asegurarse de que el código sigue las guías de estilo de Kotlin y las mejores prácticas de Android.
-- Usar herramientas como Lint y Detekt para análisis estático de código.
-- Configurar revisiones de código en merge requests para asegurar la calidad y el cumplimiento de estándares.
-- Considerar el uso de SonarQube o similar para análisis de código más profundo y métricas de calidad.
-
-## 8.13 Checklist final de entrega
-- [ ] Funcionalidad completa según lo especificado.
-- [ ] Código revisado y limpio, sin logs ni código comentado.
-- [ ] Tests unitarios e instrumentados cubriendo los casos principales.
-- [ ] Documentación actualizada: este informe, comentarios en el código, y documentación adicional si es necesaria.
-- [ ] APK generado y probado en dispositivos reales.
-- [ ] Todo el artefacto de entrega en la estructura de carpetas adecuada.
+### Herramientas:
+- **Compose UI Test JUnit4**: createAndroidComposeRule
+- **AndroidJUnit4**: Runner para tests instrumentados
 
 ---
 
-# 9. Tests instrumentados y cómo ejecutarlos
-- Test principal creado: `app/src/androidTest/java/com/example/ayuda_v2/HomeScreenTest.kt` que crea un servicio y abre el detalle.
-- Ejecutar:
+# 7. Instrucciones para ejecutar el proyecto
 
-```powershell
-.\gradlew.bat :app:connectedAndroidTest
+## Requisitos
+- Android Studio Ladybug o superior
+- JDK 21+
+- Android SDK 35+ (API 35)
+
+## Compilar y ejecutar
+```bash
+./gradlew assembleDebug
 ```
 
-Revisa el reporte HTML en `app/build/reports/androidTests/connected/debug/index.html`.
+## Ejecutar pruebas unitarias
+```bash
+./gradlew testDebugUnitTest
+```
+Reporte HTML: `app/build/reports/tests/testDebugUnitTest/index.html`
+
+## Ejecutar pruebas funcionales (requiere dispositivo/emulador)
+```bash
+./gradlew connectedDebugAndroidTest
+```
+Reporte HTML: `app/build/reports/androidTests/connected/debug/index.html`
+
+## APK descargable
+Ubicación en el repositorio: `apk/app-debug.apk`
 
 ---
 
-# Anexos y rutas relevantes
-- APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Tests: `app/src/androidTest/java/com/example/ayuda_v2/HomeScreenTest.kt`
-- Docs: `docs/PROJECT_REPORT.md` and `docs/mocks/` (evidencias)
+# 8. Evidencias de pruebas
 
+Las evidencias visuales se encuentran en el repositorio:
+
+| Archivo | Contenido |
+|---------|-----------|
+| `docs/screenshots/leaks.mp4` | LeakCanary - detección y ausencia de memory leaks |
+| `docs/screenshots/logcat.mp4` | Logcat con filtros por TAG y niveles de log |
+| `docs/screenshots/Memory.mp4` | Android Profiler - monitoreo de memoria en tiempo real |
+
+---
+
+# 9. Reflexión e impacto
+
+## Impacto en calidad
+- **Room** elimina errores de parsing JSON manual y garantiza integridad de datos
+- **MockK** permite verificar la lógica de negocio aislada de Android
+- **Compose Testing** valida los flujos reales del usuario
+
+## Impacto en escalabilidad
+- **IBookingRepository** permite migrar a API REST (Retrofit) sin cambiar el ViewModel
+- **ViewModelFactory** facilita migración futura a Hilt/Dagger
+- **Flow reactivo** de Room actualiza la UI automáticamente sin polling
+
+## Impacto en experiencia de usuario
+- **Coroutines** mantienen la UI fluida durante operaciones de base de datos
+- **UiState sealed class** permite mostrar loading/error/success consistentemente
+- **LeakCanary** previene degradación de rendimiento por memory leaks
+
+---
+
+# 10. Recomendaciones para publicación
+
+1. **Inyección de dependencias**: Migrar de ViewModelFactory manual a Hilt para mayor escalabilidad
+2. **API REST**: Integrar Retrofit para sincronizar reservas con un backend
+3. **Coil**: Configurar caché personalizada y manejo de errores avanzado para imágenes de perfil
+4. **CI/CD**: Configurar GitHub Actions para compilación y tests automáticos en cada push
+5. **Seguridad**: Agregar cifrado de Room database para datos sensibles del usuario
+6. **Accesibilidad**: Ampliar contentDescription y pruebas de contraste WCAG

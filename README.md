@@ -4,6 +4,13 @@ Aplicación móvil Android desarrollada con Kotlin y Jetpack Compose que permite
 
 ---
 
+## 📱 APK
+
+Descarga directa del APK de la última versión:
+- 📦 **[app-debug.apk](apk/app-debug.apk)**
+
+---
+
 ## 🎬 Videos Demostrativos
 
 La documentación visual se encuentra en la carpeta `docs/screenshots/`:
@@ -11,8 +18,8 @@ La documentación visual se encuentra en la carpeta `docs/screenshots/`:
 | Video | Descripción |
 |-------|-------------|
 | 📹 [leaks.mp4](docs/screenshots/leaks.mp4) | Demostración de LeakCanary - Detección de memory leaks |
-| 📹 [logcat.mp4](docs/screenshots/logcat.mp4) | Uso de Logcat para debugging con TAGs |
-| 📹 [Memory.mp4](docs/screenshots/Memory.mp4) | Android Profiler - Monitoreo de memoria |
+| 📹 [logcat.mp4](docs/screenshots/logcat.mp4) | Uso de Logcat para debugging con TAGs y niveles |
+| 📹 [Memory.mp4](docs/screenshots/Memory.mp4) | Android Profiler - Monitoreo de memoria en tiempo real |
 
 ---
 
@@ -25,28 +32,68 @@ La documentación visual se encuentra en la carpeta `docs/screenshots/`:
   - ❤️ **Salud**: Enfermera a Domicilio, Cuidador de Adulto Mayor
 
 - **Sistema de reservas completo**:
-  - Formulario con validación de datos
+  - Selección de servicio predefinido (el usuario NO escribe servicios)
+  - Formulario con validación de datos del cliente
   - Selección de fecha y hora con DatePicker/TimePicker
-  - Gestión de reservas (ver, completar, cancelar)
+  - Gestión de reservas: ver, completar (✓ Realizado), cancelar
 
-- **Arquitectura robusta**:
-  - Patrón MVVM
-  - Kotlin Coroutines para operaciones asíncronas
-  - StateFlow para estados reactivos
-  - Manejo de errores estructurado
+- **Arquitectura MVVM robusta**:
+  - Capas separadas: Model, View, ViewModel
+  - Room Database para persistencia local
+  - Kotlin Coroutines + Flow para operaciones asíncronas y reactivas
+  - StateFlow para estados de UI
+  - Inyección de dependencias manual vía ViewModelFactory
 
 ---
 
-## 🛠️ Tecnologías Utilizadas
+## 🏗️ Arquitectura Implementada
+
+### Patrón MVVM (Model-View-ViewModel)
+
+```
+┌─────────────────────────────────────────────────┐
+│                    VIEW (UI)                      │
+│  ServicesScreen ─ BookingFormScreen ─ MyBookings  │
+│          Jetpack Compose + Navigation             │
+└──────────────────────┬──────────────────────────┘
+                       │ StateFlow / Events
+┌──────────────────────┴──────────────────────────┐
+│                  VIEWMODEL                        │
+│         BookingViewModel + Factory                │
+│     Coroutines + ExceptionHandler                 │
+└──────────────────────┬──────────────────────────┘
+                       │ IBookingRepository
+┌──────────────────────┴──────────────────────────┐
+│                MODEL (DATA)                       │
+│  BookingRepository → BookingDao → Room Database   │
+│  Booking, Service, PredefinedServices             │
+└─────────────────────────────────────────────────┘
+```
+
+### Principios aplicados:
+- **Responsabilidad única**: Cada clase tiene un propósito claro
+- **Inversión de dependencias**: ViewModel depende de interfaz `IBookingRepository`, no de implementación concreta
+- **Separación de capas**: UI no accede a datos directamente
+
+---
+
+## 🛠️ Tecnologías y Componentes Jetpack
 
 | Tecnología | Versión | Propósito |
 |------------|---------|-----------|
-| Kotlin | 2.0+ | Lenguaje principal |
-| Jetpack Compose | Latest | UI declarativa |
-| Kotlin Coroutines | 1.7.3 | Procesamiento asíncrono |
-| Coil | 2.5.0 | Carga de imágenes |
-| LeakCanary | 2.12 | Detección de memory leaks |
-| Navigation Compose | 2.9.6 | Navegación entre pantallas |
+| **Kotlin** | 2.2.10 | Lenguaje principal |
+| **Jetpack Compose** | BOM 2026.01.00 | UI declarativa |
+| **Room** | 2.7.1 | Base de datos local (reemplaza SharedPreferences) |
+| **ViewModel** | 2.10.0 | Gestión de estado con ciclo de vida |
+| **Navigation Compose** | 2.9.6 | Navegación entre pantallas |
+| **StateFlow** | - | Flujo reactivo de datos UI |
+| **Kotlin Coroutines** | 1.7.3 | Procesamiento asíncrono |
+| **Coil** | 2.5.0 | Carga asíncrona de imágenes con caché |
+| **LeakCanary** | 2.12 | Detección de memory leaks (debug) |
+| **KSP** | 2.2.10-2.0.2 | Procesador de anotaciones para Room |
+| **JUnit** | 4.13.2 | Pruebas unitarias |
+| **MockK** | 1.13.8 | Mocking para Kotlin |
+| **Espresso/Compose Testing** | Latest | Pruebas funcionales de UI |
 
 ---
 
@@ -54,40 +101,55 @@ La documentación visual se encuentra en la carpeta `docs/screenshots/`:
 
 ```
 app/src/main/java/com/example/ayuda_v2/
-├── AyudaApplication.kt              # Application class - Inicialización y monitoreo de memoria
+├── AyudaApplication.kt              # Application - Inicialización Room + monitoreo memoria
 ├── MainActivity.kt                  # Entry point
 │
-├── data/                            # CAPA DE DATOS (Model)
-│   ├── BookingRepository.kt         # Repository para reservas con Coroutines
+├── data/                            # ═══ CAPA DE DATOS (Model) ═══
+│   ├── BookingRepository.kt         # Repositorio + Interfaz IBookingRepository
+│   ├── local/
+│   │   ├── AppDatabase.kt           # Room Database (singleton)
+│   │   ├── BookingDao.kt            # DAO con Flow reactivo
+│   │   └── BookingEntity.kt         # Entidad Room + mappers
 │   └── model/
-│       ├── Booking.kt               # Modelo de reserva
-│       └── Service.kt               # Modelo de servicio + servicios predefinidos
+│       ├── Booking.kt               # Modelo de dominio + BookingStatus
+│       └── Service.kt               # Modelo de servicio + PredefinedServices
 │
-├── ui/                              # CAPA DE PRESENTACIÓN (View)
+├── ui/                              # ═══ CAPA DE PRESENTACIÓN (View) ═══
 │   ├── components/
 │   │   └── ServiceImage.kt          # Componente Coil para imágenes
 │   ├── navigation/
-│   │   └── NavGraph.kt              # Navegación entre pantallas
+│   │   └── NavGraph.kt              # Navigation Compose + ViewModelFactory
 │   ├── screens/
-│   │   ├── ServicesScreen.kt        # Lista de servicios predefinidos
-│   │   ├── BookingFormScreen.kt     # Formulario de reserva
-│   │   └── MyBookingsScreen.kt      # Gestión de reservas del usuario
+│   │   ├── ServicesScreen.kt        # Lista de servicios con filtros
+│   │   ├── BookingFormScreen.kt     # Formulario de reserva con validación
+│   │   └── MyBookingsScreen.kt      # Gestión de reservas (completar/cancelar)
 │   ├── state/
-│   │   └── UiState.kt               # Sealed class para estados de UI
+│   │   └── UiState.kt               # Sealed class: Idle/Loading/Success/Error
 │   └── theme/
 │
-└── viewmodel/                       # CAPA DE LÓGICA (ViewModel)
-    └── BookingViewModel.kt          # ViewModel principal con Coroutines
+└── viewmodel/                       # ═══ CAPA DE LÓGICA (ViewModel) ═══
+    └── BookingViewModel.kt          # ViewModel + Factory con inyección de dependencias
+
+app/src/test/                        # ═══ PRUEBAS UNITARIAS ═══
+├── viewmodel/
+│   └── BookingViewModelTest.kt      # 18 tests: lógica de negocio
+└── data/
+    └── BookingRepositoryTest.kt     # 15 tests: operaciones de datos
+
+app/src/androidTest/                 # ═══ PRUEBAS FUNCIONALES ═══
+├── BookingFlowTest.kt              # 11 tests: flujos de usuario completos
+└── ExampleInstrumentedTest.kt      # Test de contexto básico
 ```
 
 ---
 
-## 🔧 Instalación
+## 🔧 Instalación y Ejecución
 
 ### Requisitos Previos
-- Android Studio Hedgehog o superior
-- JDK 11+
+- Android Studio Ladybug o superior
+- JDK 21+
 - Android SDK 35+
+- Dispositivo/emulador con Android 15 (API 35)
 
 ### Pasos
 1. Clonar el repositorio:
@@ -97,7 +159,7 @@ git clone https://github.com/[tu-usuario]/Ayuda_v2.git
 
 2. Abrir en Android Studio
 
-3. Sincronizar Gradle
+3. Sincronizar Gradle (se descargarán Room, KSP, MockK automáticamente)
 
 4. Ejecutar en emulador o dispositivo físico
 
@@ -107,75 +169,81 @@ git clone https://github.com/[tu-usuario]/Ayuda_v2.git
 ```
 El APK se genera en: `app/build/outputs/apk/debug/app-debug.apk`
 
+### Ejecutar Pruebas Unitarias
+```bash
+./gradlew testDebugUnitTest
+```
+Reporte en: `app/build/reports/tests/testDebugUnitTest/index.html`
+
+### Ejecutar Pruebas Funcionales (requiere dispositivo/emulador)
+```bash
+./gradlew connectedDebugAndroidTest
+```
+
 ---
 
 ## 📋 Mejoras Técnicas Implementadas
 
-### 1. Procesamiento Asíncrono (Kotlin Coroutines)
-```kotlin
-// Ejemplo de BookingViewModel.kt
-viewModelScope.launch(exceptionHandler) {
-    _uiState.value = UiState.Loading
-    withContext(Dispatchers.IO) {
-        BookingRepository.add(ctx, booking)
-    }
-    _uiState.value = UiState.Success(Unit)
-}
-```
-- `Dispatchers.IO` para operaciones de E/S sin bloquear UI
-- `viewModelScope` para gestión automática del ciclo de vida
+### Semana 3: Procesamiento Asíncrono (Kotlin Coroutines)
+- `viewModelScope.launch()` para operaciones sin bloquear UI
+- `Dispatchers.IO` en el Repository para operaciones de base de datos
 - `CoroutineExceptionHandler` para manejo global de errores
+- `Flow` reactivo desde Room para actualizaciones automáticas de UI
 
-### 2. Debugging y Manejo de Errores
-```kotlin
-// Try-catch estratégico
-try {
-    val obj = arr.getJSONObject(i)
-    list.add(Booking(...))
-} catch (e: JSONException) {
-    Log.e(TAG, "Error parsing booking at index $i", e)
-}
+### Semana 4: Debugging y Manejo de Errores
+- **Try-catch** estratégico en operaciones críticas (CRUD de reservas)
+- **Logcat** estructurado con niveles (Debug, Info, Warning, Error) y TAGs
+- **Simulación de errores** con `simulateError()` para verificar robustez
+- TAGs: `BookingRepository`, `BookingViewModel`, `AyudaApplication`
 
-// Simulación de errores para testing
-fun simulateError() {
-    viewModelScope.launch(exceptionHandler) {
-        throw RuntimeException("Error simulado para testing")
-    }
-}
-```
-- Try-catch en operaciones críticas
-- Logging estructurado con niveles (Debug, Warning, Error)
-- Método `simulateError()` para testing
+### Semana 5: Gestión de Memoria
+- **LeakCanary 2.12** integrado en builds de debug
+- **applicationContext** usado en toda la app para prevenir leaks de Activity
+- **Monitoreo de memoria** en `AyudaApplication.onTrimMemory()`
+- **ViewModel.onCleared()** para logging de liberación de recursos
 
-### 3. Detección de Memory Leaks (LeakCanary)
-```kotlin
-// build.gradle.kts
-debugImplementation("com.squareup.leakcanary:leakcanary-android:2.12")
+### Semana 6: Integración de Librerías y Estructura
+- **Room Database** reemplaza SharedPreferences (consultas SQL, Flow reactivo, compilación verificada)
+- **Coil** para carga asíncrona de imágenes con caché automático
+- **KSP** como procesador de anotaciones para Room
+- **MVVM** con separación completa de capas
+- **ViewModelFactory** para inyección de dependencias
 
-// BookingViewModel.kt - Prevención de leaks
-private val ctx = application.applicationContext  // ✅ Correcto
-```
-- LeakCanary integrado en builds de debug
-- Uso de `applicationContext` para prevenir leaks
-- Monitoreo de eventos de memoria en `AyudaApplication`
+### Semana 7: Arquitectura MVVM y Pruebas
+- **Refactorización completa a MVVM**: interfaz `IBookingRepository`, `BookingViewModelFactory`
+- **Room + DAO + Entity**: migración de SharedPreferences a base de datos relacional
+- **Pruebas unitarias (34 tests)**: BookingViewModelTest (18) + BookingRepositoryTest (15) + ExampleUnitTest (1)
+  - MockK para mocking de dependencias
+  - coroutines-test para testing asíncrono
+- **Pruebas funcionales (12 tests)**: BookingFlowTest (11) + ExampleInstrumentedTest (1)
+  - Navegación entre pantallas
+  - Visualización de servicios y categorías
+  - Formulario de reserva
+  - Estado vacío de reservas
+- **APK descargable** en `apk/app-debug.apk`
 
-### 4. Librería Externa - Coil
-```kotlin
-// ServiceImage.kt
-SubcomposeAsyncImage(
-    model = imageUrl,
-    loading = { CircularProgressIndicator() },
-    error = { DefaultServicePlaceholder() }
-)
-```
-- Carga asíncrona de imágenes
-- Caché automático en memoria y disco
-- Placeholders durante carga y manejo de errores
+---
 
-### 5. Patrón MVVM
-- **Model**: `BookingRepository`, `Booking`, `Service`
-- **View**: Screens y Components (Compose)
-- **ViewModel**: `BookingViewModel` con StateFlow
+## 🧪 Pruebas Implementadas
+
+### Pruebas Unitarias (JUnit + MockK)
+
+| Clase | Tests | Cobertura |
+|-------|-------|-----------|
+| `BookingViewModelTest` | 18 | Creación, cancelación, completación de reservas, manejo de errores, Flow |
+| `BookingRepositoryTest` | 15 | CRUD, mapeo Entity↔Model, manejo de errores, validación de datos |
+| `ExampleUnitTest` | 1 | Test base |
+
+**Herramientas**: JUnit 4.13.2, MockK 1.13.8, kotlinx-coroutines-test 1.7.3
+
+### Pruebas Funcionales (Compose Testing / Espresso)
+
+| Clase | Tests | Flujo |
+|-------|-------|-------|
+| `BookingFlowTest` | 11 | Pantalla de servicios, filtros, navegación a formulario, formulario, Mis Reservas |
+| `ExampleInstrumentedTest` | 1 | Verificación de contexto |
+
+**Herramientas**: Compose UI Test JUnit4, AndroidJUnit4
 
 ---
 
@@ -191,9 +259,9 @@ adb logcat *:E
 
 | Tag | Propósito |
 |-----|-----------|
-| `BookingRepository` | Operaciones de datos (CRUD) |
-| `BookingViewModel` | Lógica de negocio y estados |
-| `AyudaApplication` | Eventos de aplicación y memoria |
+| `BookingRepository` | Operaciones de datos (CRUD Room) con tiempos |
+| `BookingViewModel` | Lógica de negocio, estados y errores |
+| `AyudaApplication` | Eventos de aplicación, memoria y ciclo de vida |
 
 ---
 
@@ -202,42 +270,21 @@ adb logcat *:E
 ### Videos Demostrativos
 | Archivo | Contenido |
 |---------|-----------|
-| `docs/screenshots/leaks.mp4` | Demostración de LeakCanary sin memory leaks |
-| `docs/screenshots/logcat.mp4` | Uso de Logcat con filtros por TAG |
-| `docs/screenshots/Memory.mp4` | Android Profiler mostrando uso de memoria |
+| `docs/screenshots/leaks.mp4` | LeakCanary - detección de memory leaks |
+| `docs/screenshots/logcat.mp4` | Logcat con filtros por TAG y niveles |
+| `docs/screenshots/Memory.mp4` | Android Profiler - uso de memoria |
 
 ### Documentación Técnica
 | Archivo | Descripción |
 |---------|-------------|
-| `docs/PROJECT_REPORT.md` | Informe del proyecto |
-
----
-
-## 📱 APK
-
-Descarga el APK de la última versión:
-- Ubicación: `app/build/outputs/apk/debug/app-debug.apk`
-
----
-
-## 🧪 Funciones de Testing
-
-El `BookingViewModel` incluye métodos útiles para debugging:
-
-```kotlin
-// Simular un error para probar el manejo de excepciones
-viewModel.simulateError()
-
-// Limpiar todas las reservas (útil para testing)
-viewModel.clearAllBookings()
-```
+| `docs/PROJECT_REPORT.md` | Informe técnico del proyecto |
 
 ---
 
 ## 👨‍💻 Autor
 
 **Proyecto Duoc UC**  
-Aplicación desarrollada como parte del curso de desarrollo móvil.
+Aplicación desarrollada como parte del curso de Desarrollo de Aplicaciones Móviles II.
 
 ---
 

@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -13,8 +14,8 @@ android {
         applicationId = "com.example.ayuda_v2"
         minSdk = 35
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -46,9 +47,15 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation("androidx.navigation:navigation-compose:2.9.6")
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
-    // Coil for image loading (better Compose integration than Glide)
+    // Room for local database persistence
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    // Coil for image loading (better Compose integration)
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Coroutines for async processing
@@ -57,7 +64,13 @@ dependencies {
     // LeakCanary for memory leak detection
     debugImplementation("com.squareup.leakcanary:leakcanary-android:2.12")
 
+    // Unit Testing
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.androidx.arch.core.testing)
+
+    // Instrumented Testing
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

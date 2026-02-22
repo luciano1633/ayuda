@@ -1,16 +1,15 @@
 package com.example.ayuda_v2.viewmodel
 
-import android.app.Application
 import android.util.Log
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import com.example.ayuda_v2.data.BookingRepository
+import com.example.ayuda_v2.data.IBookingRepository
 import com.example.ayuda_v2.data.model.Booking
 import com.example.ayuda_v2.data.model.BookingStatus
 import com.example.ayuda_v2.data.model.PredefinedServices
@@ -21,19 +20,24 @@ import java.util.UUID
 /**
  * ViewModel para gestionar servicios y reservas.
  * Implementa el patrón MVVM con procesamiento asincrónico.
+ *
+ * Recibe IBookingRepository por constructor para:
+ * - Inversión de dependencias (principio SOLID)
+ * - Facilitar testing con mocks
+ * - Desacoplar de la implementación concreta (Room/SharedPreferences)
  */
-class BookingViewModel(application: Application) : AndroidViewModel(application) {
+class BookingViewModel(
+    private val repository: IBookingRepository
+) : ViewModel() {
     companion object {
         private const val TAG = "BookingViewModel"
     }
-
-    private val ctx = application.applicationContext
 
     // Lista de servicios predefinidos (no cambian)
     private val _services = MutableStateFlow<List<Service>>(PredefinedServices.services)
     val services: StateFlow<List<Service>> = _services
 
-    // Lista de reservas del usuario
+    // Lista de reservas del usuario (observa Flow de Room)
     private val _bookings = MutableStateFlow<List<Booking>>(emptyList())
     val bookings: StateFlow<List<Booking>> = _bookings
 
@@ -41,7 +45,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     private val _uiState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val uiState: StateFlow<UiState<Unit>> = _uiState
 
-    // Manejador de excepciones
+    // Manejador de excepciones para coroutines
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         Log.e(TAG, "Error in coroutine", throwable)
         _uiState.value = UiState.Error(
@@ -51,27 +55,25 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     }
 
     init {
-        loadBookings()
+        observeBookings()
     }
 
     /**
-     * Carga todas las reservas del usuario.
+     * Observa el Flow de reservas desde Room.
+     * Se actualiza automáticamente cuando cambian los datos.
      */
-    fun loadBookings() {
+    private fun observeBookings() {
         viewModelScope.launch(exceptionHandler) {
-            try {
-                _uiState.value = UiState.Loading
-                Log.d(TAG, "Loading bookings")
-
-                val bookingsList = BookingRepository.getAll(ctx)
-                _bookings.value = bookingsList
-
-                _uiState.value = UiState.Success(Unit)
-                Log.d(TAG, "Loaded ${bookingsList.size} bookings")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading bookings", e)
-                _uiState.value = UiState.Error("Error al cargar reservas: ${e.message}", e)
-            }
+            Log.d(TAG, "Starting to observe bookings from Room")
+            repository.getAllBookingsFlow()
+                .catch { e ->
+                    Log.e(TAG, "Error observing bookings", e)
+                    _uiState.value = UiState.Error("Error al cargar reservas: ${e.message}", e)
+                }
+                .collect { bookingsList ->
+                    _bookings.value = bookingsList
+                    Log.d(TAG, "Bookings updated: ${bookingsList.size} items")
+                }
         }
     }
 
@@ -100,7 +102,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                 Log.d(TAG, "Creating booking for service: $serviceId")
 
                 val service = PredefinedServices.getById(serviceId)
-                    ?: throw IllegalArgumentException("Servicio no encontrado")
+                    ?: throw IllegalArgumentException("Servicio no encontrado: $serviceId")
 
                 val booking = Booking(
                     id = UUID.randomUUID().toString(),
@@ -116,12 +118,7 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                     status = BookingStatus.PENDING
                 )
 
-                withContext(Dispatchers.IO) {
-                    BookingRepository.add(ctx, booking)
-                }
-
-                // Recargar lista
-                _bookings.value = BookingRepository.getAll(ctx)
+                repository.add(booking)
 
                 _uiState.value = UiState.Success(Unit)
                 Log.d(TAG, "Booking created successfully: ${booking.id}")
@@ -141,11 +138,8 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = UiState.Loading
                 Log.d(TAG, "Cancelling booking: $bookingId")
 
-                withContext(Dispatchers.IO) {
-                    BookingRepository.cancel(ctx, bookingId)
-                }
+                repository.cancel(bookingId)
 
-                _bookings.value = BookingRepository.getAll(ctx)
                 _uiState.value = UiState.Success(Unit)
                 Log.d(TAG, "Booking cancelled")
             } catch (e: Exception) {
@@ -164,11 +158,8 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = UiState.Loading
                 Log.d(TAG, "Completing booking: $bookingId")
 
-                withContext(Dispatchers.IO) {
-                    BookingRepository.updateStatus(ctx, bookingId, BookingStatus.COMPLETED)
-                }
+                repository.updateStatus(bookingId, BookingStatus.COMPLETED)
 
-                _bookings.value = BookingRepository.getAll(ctx)
                 _uiState.value = UiState.Success(Unit)
                 Log.d(TAG, "Booking marked as completed")
             } catch (e: Exception) {
@@ -187,11 +178,8 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = UiState.Loading
                 Log.d(TAG, "Deleting booking: $bookingId")
 
-                withContext(Dispatchers.IO) {
-                    BookingRepository.delete(ctx, bookingId)
-                }
+                repository.delete(bookingId)
 
-                _bookings.value = BookingRepository.getAll(ctx)
                 _uiState.value = UiState.Success(Unit)
                 Log.d(TAG, "Booking deleted")
             } catch (e: Exception) {
@@ -230,12 +218,8 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = UiState.Loading
                 Log.d(TAG, "Clearing all bookings")
 
-                withContext(Dispatchers.IO) {
-                    val prefs = ctx.getSharedPreferences("bookings_prefs", android.content.Context.MODE_PRIVATE)
-                    prefs.edit().clear().commit()
-                }
+                repository.deleteAll()
 
-                _bookings.value = emptyList()
                 _uiState.value = UiState.Success(Unit)
                 Log.d(TAG, "All bookings cleared")
             } catch (e: Exception) {
@@ -248,6 +232,22 @@ class BookingViewModel(application: Application) : AndroidViewModel(application)
     override fun onCleared() {
         super.onCleared()
         Log.d(TAG, "ViewModel cleared - resources released")
+    }
+}
+
+/**
+ * Factory para crear BookingViewModel con inyección de dependencias.
+ * Necesario porque ViewModel requiere un constructor sin parámetros por defecto.
+ */
+class BookingViewModelFactory(
+    private val repository: IBookingRepository
+) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(BookingViewModel::class.java)) {
+            return BookingViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
 }
 

@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,11 +40,6 @@ fun MyBookingsScreen(
             snackbarHostState.showSnackbar(uiState.message)
             viewModel.resetUiState()
         }
-    }
-
-    // Refresh bookings when screen opens
-    LaunchedEffect(Unit) {
-        viewModel.loadBookings()
     }
 
     Scaffold(
@@ -188,7 +184,7 @@ private fun BookingCard(
     onComplete: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag("booking_card_${booking.id}"),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -236,7 +232,7 @@ private fun BookingCard(
                 // Complete button
                 Button(
                     onClick = onComplete,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("btn_complete_${booking.id}"),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -249,7 +245,7 @@ private fun BookingCard(
                 // Cancel button
                 OutlinedButton(
                     onClick = onCancel,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("btn_cancel_${booking.id}"),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )

@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -189,7 +190,7 @@ fun BookingFormScreen(
                 value = customerName,
                 onValueChange = { customerName = it },
                 label = { Text("Nombre completo") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("input_name"),
                 singleLine = true
             )
 
@@ -198,7 +199,7 @@ fun BookingFormScreen(
                 value = customerPhone,
                 onValueChange = { customerPhone = it.filter { c -> c.isDigit() || c == '+' } },
                 label = { Text("Teléfono") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("input_phone"),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 placeholder = { Text("+56 9 1234 5678") }
@@ -209,7 +210,7 @@ fun BookingFormScreen(
                 value = customerAddress,
                 onValueChange = { customerAddress = it },
                 label = { Text("Dirección") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("input_address"),
                 minLines = 2
             )
 
@@ -304,7 +305,8 @@ fun BookingFormScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(56.dp)
+                    .testTag("btn_confirm_booking"),
                 enabled = isFormValid && uiState !is UiState.Loading,
                 shape = RoundedCornerShape(12.dp)
             ) {

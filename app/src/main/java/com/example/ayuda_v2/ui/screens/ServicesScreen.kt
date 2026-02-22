@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,7 +63,7 @@ fun ServicesScreen(
                         }
                     ) {
                         TextButton(onClick = onMyBookingsClick) {
-                            Text("Mis Reservas")
+                            Text("Mis Reservas", modifier = Modifier.testTag("btn_my_bookings"))
                         }
                     }
                 }
@@ -142,6 +143,7 @@ private fun ServiceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .testTag("service_card_${service.id}")
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)

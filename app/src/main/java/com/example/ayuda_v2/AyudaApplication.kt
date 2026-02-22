@@ -2,33 +2,42 @@ package com.example.ayuda_v2
 
 import android.app.Application
 import android.util.Log
+import com.example.ayuda_v2.data.BookingRepository
+import com.example.ayuda_v2.data.local.AppDatabase
 
 /**
  * Custom Application class for app-wide initialization.
  *
- * Memory Leak Prevention:
- * - LeakCanary is automatically initialized in debug builds (no manual setup needed)
- * - Using applicationContext throughout the app prevents Activity/Fragment context leaks
+ * Responsabilidades:
+ * - Inicializar Room Database (singleton)
+ * - Proveer BookingRepository (inyección manual de dependencias)
+ * - Monitorear eventos de memoria
  *
- * LeakCanary will automatically:
- * - Monitor for memory leaks when Activities/Fragments are destroyed
- * - Show notifications when leaks are detected
- * - Provide detailed heap traces for debugging
+ * Memory Leak Prevention:
+ * - LeakCanary se inicializa automáticamente en builds de debug
+ * - Uso de applicationContext en toda la app previene leaks de Activity/Fragment
  */
 class AyudaApplication : Application() {
     companion object {
         private const val TAG = "AyudaApplication"
     }
 
+    /** Base de datos Room - singleton */
+    val database: AppDatabase by lazy {
+        Log.d(TAG, "Initializing Room database")
+        AppDatabase.getInstance(this)
+    }
+
+    /** Repositorio de reservas - singleton */
+    val bookingRepository: BookingRepository by lazy {
+        Log.d(TAG, "Initializing BookingRepository")
+        BookingRepository(database.bookingDao())
+    }
+
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "Application created - LeakCanary active in debug builds")
-
-        // LeakCanary is automatically initialized in debug builds when the dependency is added
-        // No manual configuration needed for basic usage
-
-        // Log app startup for debugging
-        Log.i(TAG, "App initialized successfully")
+        Log.i(TAG, "App initialized successfully with Room database")
     }
 
     override fun onLowMemory() {
@@ -36,6 +45,7 @@ class AyudaApplication : Application() {
         Log.w(TAG, "System is running low on memory - consider releasing resources")
     }
 
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         when (level) {
