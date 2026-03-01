@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ayuda_v2.data.model.PredefinedServices
+import com.example.ayuda_v2.ui.TestTags
 import com.example.ayuda_v2.ui.state.UiState
 import com.example.ayuda_v2.viewmodel.BookingViewModel
 import java.util.*
@@ -190,7 +191,7 @@ fun BookingFormScreen(
                 value = customerName,
                 onValueChange = { customerName = it },
                 label = { Text("Nombre completo") },
-                modifier = Modifier.fillMaxWidth().testTag("input_name"),
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.INPUT_NAME),
                 singleLine = true
             )
 
@@ -199,7 +200,7 @@ fun BookingFormScreen(
                 value = customerPhone,
                 onValueChange = { customerPhone = it.filter { c -> c.isDigit() || c == '+' } },
                 label = { Text("Teléfono") },
-                modifier = Modifier.fillMaxWidth().testTag("input_phone"),
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.INPUT_PHONE),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 placeholder = { Text("+56 9 1234 5678") }
@@ -210,7 +211,7 @@ fun BookingFormScreen(
                 value = customerAddress,
                 onValueChange = { customerAddress = it },
                 label = { Text("Dirección") },
-                modifier = Modifier.fillMaxWidth().testTag("input_address"),
+                modifier = Modifier.fillMaxWidth().testTag(TestTags.INPUT_ADDRESS),
                 minLines = 2
             )
 
@@ -306,7 +307,7 @@ fun BookingFormScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .testTag("btn_confirm_booking"),
+                    .testTag(TestTags.BTN_CONFIRM_BOOKING),
                 enabled = isFormValid && uiState !is UiState.Loading,
                 shape = RoundedCornerShape(12.dp)
             ) {

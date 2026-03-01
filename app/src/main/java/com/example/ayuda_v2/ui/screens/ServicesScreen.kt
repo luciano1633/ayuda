@@ -17,6 +17,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ayuda_v2.data.model.Service
 import com.example.ayuda_v2.data.model.ServiceCategory
 import com.example.ayuda_v2.data.model.BookingStatus
+import com.example.ayuda_v2.ui.TestTags
 import com.example.ayuda_v2.viewmodel.BookingViewModel
 
 /**
@@ -63,7 +64,7 @@ fun ServicesScreen(
                         }
                     ) {
                         TextButton(onClick = onMyBookingsClick) {
-                            Text("Mis Reservas", modifier = Modifier.testTag("btn_my_bookings"))
+                            Text("Mis Reservas", modifier = Modifier.testTag(TestTags.BTN_MY_BOOKINGS))
                         }
                     }
                 }
@@ -143,7 +144,7 @@ private fun ServiceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .testTag("service_card_${service.id}")
+            .testTag(TestTags.serviceCard(service.id))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)

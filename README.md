@@ -112,9 +112,11 @@ app/src/main/java/com/example/ayuda_v2/
 │   │   └── BookingEntity.kt         # Entidad Room + mappers
 │   └── model/
 │       ├── Booking.kt               # Modelo de dominio + BookingStatus
+│       ├── BookingValidator.kt      # Validación de formularios (lógica pura)
 │       └── Service.kt               # Modelo de servicio + PredefinedServices
 │
 ├── ui/                              # ═══ CAPA DE PRESENTACIÓN (View) ═══
+│   ├── TestTags.kt                  # Constantes centralizadas para test tags
 │   ├── components/
 │   │   └── ServiceImage.kt          # Componente Coil para imágenes
 │   ├── navigation/
@@ -134,10 +136,13 @@ app/src/test/                        # ═══ PRUEBAS UNITARIAS ═══
 ├── viewmodel/
 │   └── BookingViewModelTest.kt      # 18 tests: lógica de negocio
 └── data/
-    └── BookingRepositoryTest.kt     # 15 tests: operaciones de datos
+    ├── BookingRepositoryTest.kt     # 15 tests: operaciones de datos
+    └── model/
+        ├── BookingValidatorTest.kt  # 28 tests: validación de formularios
+        └── PredefinedServicesTest.kt # 17 tests: servicios y modelos
 
 app/src/androidTest/                 # ═══ PRUEBAS FUNCIONALES ═══
-├── BookingFlowTest.kt              # 11 tests: flujos de usuario completos
+├── BookingFlowTest.kt              # 21 tests: flujos de usuario completos
 └── ExampleInstrumentedTest.kt      # Test de contexto básico
 ```
 
@@ -220,7 +225,15 @@ Reporte en: `app/build/reports/tests/testDebugUnitTest/index.html`
   - Visualización de servicios y categorías
   - Formulario de reserva
   - Estado vacío de reservas
-- **APK descargable** en `apk/app-debug.apk`
+
+### Semana 8: Cierre Técnico y Publicación
+- **TestTags centralizados** (`ui/TestTags.kt`): constantes compartidas entre UI y tests (recomendación del profesor)
+- **BookingValidator**: clase de validación pura sin dependencias Android, 100% testeable
+- **PredefinedServicesTest**: 17 tests para integridad de datos de servicios y modelos
+- **BookingValidatorTest**: 28 tests con casos positivos, negativos y valores límite
+- **Pruebas funcionales ampliadas**: 21 tests (filtros por categoría, input datos, botón deshabilitado, flujos completos)
+- **Total: 99+ pruebas** (78 unitarias + 21 funcionales)
+- **APK v3.0** actualizado y disponible en `apk/app-debug.apk`
 
 ---
 
@@ -232,6 +245,8 @@ Reporte en: `app/build/reports/tests/testDebugUnitTest/index.html`
 |-------|-------|-----------|
 | `BookingViewModelTest` | 18 | Creación, cancelación, completación de reservas, manejo de errores, Flow |
 | `BookingRepositoryTest` | 15 | CRUD, mapeo Entity↔Model, manejo de errores, validación de datos |
+| `BookingValidatorTest` | 28 | Validación de nombre, teléfono, dirección, fecha, hora, formulario completo |
+| `PredefinedServicesTest` | 17 | Integridad de servicios, categorías, estados, modelos de dominio |
 | `ExampleUnitTest` | 1 | Test base |
 
 **Herramientas**: JUnit 4.13.2, MockK 1.13.8, kotlinx-coroutines-test 1.7.3
@@ -240,10 +255,10 @@ Reporte en: `app/build/reports/tests/testDebugUnitTest/index.html`
 
 | Clase | Tests | Flujo |
 |-------|-------|-------|
-| `BookingFlowTest` | 11 | Pantalla de servicios, filtros, navegación a formulario, formulario, Mis Reservas |
+| `BookingFlowTest` | 21 | Pantalla de servicios, filtros por categoría, navegación, formulario, input datos, Mis Reservas, flujos completos |
 | `ExampleInstrumentedTest` | 1 | Verificación de contexto |
 
-**Herramientas**: Compose UI Test JUnit4, AndroidJUnit4
+**Herramientas**: Compose UI Test JUnit4, AndroidJUnit4, TestTags centralizados
 
 ---
 
@@ -294,5 +309,5 @@ Este proyecto es de uso educativo para Duoc UC.
 
 ---
 
-**Versión**: 2.0  
-**Última actualización**: Febrero 2026
+**Versión**: 3.0  
+**Última actualización**: Marzo 2026

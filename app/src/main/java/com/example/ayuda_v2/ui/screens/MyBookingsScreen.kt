@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ayuda_v2.data.model.Booking
 import com.example.ayuda_v2.data.model.BookingStatus
+import com.example.ayuda_v2.ui.TestTags
 import com.example.ayuda_v2.ui.state.UiState
 import com.example.ayuda_v2.viewmodel.BookingViewModel
 
@@ -184,7 +185,7 @@ private fun BookingCard(
     onComplete: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().testTag("booking_card_${booking.id}"),
+        modifier = Modifier.fillMaxWidth().testTag(TestTags.bookingCard(booking.id)),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -232,7 +233,7 @@ private fun BookingCard(
                 // Complete button
                 Button(
                     onClick = onComplete,
-                    modifier = Modifier.fillMaxWidth().testTag("btn_complete_${booking.id}"),
+                    modifier = Modifier.fillMaxWidth().testTag(TestTags.btnComplete(booking.id)),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -245,7 +246,7 @@ private fun BookingCard(
                 // Cancel button
                 OutlinedButton(
                     onClick = onCancel,
-                    modifier = Modifier.fillMaxWidth().testTag("btn_cancel_${booking.id}"),
+                    modifier = Modifier.fillMaxWidth().testTag(TestTags.btnCancel(booking.id)),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
