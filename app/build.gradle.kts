@@ -10,6 +10,15 @@ android {
         version = release(36)
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("ayuda_v2_keystore.jks")
+            storePassword = "ayuda2026"
+            keyAlias = "ayuda_v2"
+            keyPassword = "ayuda2026"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.ayuda_v2"
         minSdk = 35
@@ -23,6 +32,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -6,8 +6,9 @@ Aplicación móvil Android desarrollada con Kotlin y Jetpack Compose que permite
 
 ## 📱 APK
 
-Descarga directa del APK de la última versión:
-- 📦 **[app-debug.apk](apk/app-debug.apk)**
+Descarga directa del APK:
+- 📦 **[app-release.apk](apk/app-release.apk)** — APK firmado (release)
+- 📦 **[app-debug.apk](apk/app-debug.apk)** — APK de debug (con LeakCanary)
 
 ---
 
@@ -170,9 +171,17 @@ git clone https://github.com/[tu-usuario]/Ayuda_v2.git
 
 ### Generar APK
 ```bash
+# APK de debug (incluye LeakCanary)
 ./gradlew assembleDebug
+
+# APK firmado (release)
+./gradlew assembleRelease
 ```
-El APK se genera en: `app/build/outputs/apk/debug/app-debug.apk`
+Los APKs se generan en:
+- Debug: `app/build/outputs/apk/debug/app-debug.apk`
+- Release: `app/build/outputs/apk/release/app-release.apk`
+
+APKs disponibles para descarga directa en: `apk/`
 
 ### Ejecutar Pruebas Unitarias
 ```bash
@@ -233,7 +242,7 @@ Reporte en: `app/build/reports/tests/testDebugUnitTest/index.html`
 - **BookingValidatorTest**: 28 tests con casos positivos, negativos y valores límite
 - **Pruebas funcionales ampliadas**: 21 tests (filtros por categoría, input datos, botón deshabilitado, flujos completos)
 - **Total: 99+ pruebas** (78 unitarias + 21 funcionales)
-- **APK v3.0** actualizado y disponible en `apk/app-debug.apk`
+- **APK v3.0 firmado** (release + debug) disponible en `apk/`
 
 ---
 

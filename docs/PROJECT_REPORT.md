@@ -399,19 +399,32 @@ Las evidencias visuales se encuentran en el repositorio:
 | `docs/screenshots/leaks.mp4` | LeakCanary - detección y ausencia de memory leaks |
 | `docs/screenshots/logcat.mp4` | Logcat con filtros por TAG y niveles de log |
 | `docs/screenshots/Memory.mp4` | Android Profiler - monitoreo de memoria en tiempo real |
+| `apk/app-release.apk` | APK firmado (release) v3.0 |
+| `apk/app-debug.apk` | APK de debug con LeakCanary v3.0 |
 
 ---
 
 # 9. Generación y firma del APK
 
 ## Proceso de generación
-1. Configuración de `versionCode = 3` y `versionName = "3.0"` en `build.gradle.kts`
-2. Verificación de `applicationId`, `minSdk`, `targetSdk` y permisos
-3. Generación del APK de debug: `./gradlew assembleDebug`
-4. APK disponible en: `apk/app-debug.apk`
+1. Generación de keystore con keytool: `ayuda_v2_keystore.jks` (RSA 2048, validez 10000 días)
+2. Configuración de `signingConfigs` en `build.gradle.kts` con alias `ayuda_v2`
+3. Configuración de `versionCode = 3` y `versionName = "3.0"`
+4. Verificación de `applicationId`, `minSdk`, `targetSdk`, íconos y permisos
+5. Generación del APK firmado: `./gradlew assembleRelease`
+6. APKs disponibles en: `apk/app-release.apk` (firmado) y `apk/app-debug.apk`
 
 ## Configuración del APK
 ```kotlin
+signingConfigs {
+    create("release") {
+        storeFile = file("ayuda_v2_keystore.jks")
+        storePassword = "ayuda2026"
+        keyAlias = "ayuda_v2"
+        keyPassword = "ayuda2026"
+    }
+}
+
 defaultConfig {
     applicationId = "com.example.ayuda_v2"
     minSdk = 35
@@ -419,6 +432,24 @@ defaultConfig {
     versionCode = 3
     versionName = "3.0"
 }
+
+buildTypes {
+    release {
+        isMinifyEnabled = false
+        signingConfig = signingConfigs.getByName("release")
+    }
+}
+```
+
+## Configuración del Manifest
+```xml
+<application
+    android:name=".AyudaApplication"
+    android:icon="@mipmap/ic_launcher"
+    android:roundIcon="@mipmap/ic_launcher_round"
+    android:label="@string/app_name"
+    android:allowBackup="true"
+    android:supportsRtl="true">
 ```
 
 ---
